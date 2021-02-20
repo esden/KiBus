@@ -73,6 +73,8 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
             index_net = nets.index(net)
             index = self.net_list.InsertStringItem(index_net, net)
             self.net_list.SetStringItem(index, 1, "0.0")
+            item = self.net_list.GetItem(index, 1)
+            item.SetBackgroundColour(wx.Colour(255,0,0))
             self.net_data.append( (net, 0.0) )
 
         self.board = board
