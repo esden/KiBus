@@ -29,6 +29,7 @@ import os
 import logging
 import sys
 import timeit
+from typing import Union
 
 if __name__ == '__main__':
     import kibus_GUI
@@ -49,6 +50,18 @@ else:
     BUILD_VERSION = "Unknown"
 
 
+def median(x: Union[int, float]) -> float:
+    """Return median from a list of values.
+
+    Thanks to http://stackoverflow.com/a/25791644
+    """
+    if len(x) % 2 != 0:
+        return sorted(x)[len(x) // 2]
+    else:
+        midavg = (sorted(x)[len(x) // 2] + sorted(x)[len(x) // 2 - 1]) / 2.0
+        return midavg
+
+
 class KiBusDialog(kibus_GUI.KiBusGUI):
     # hack for new wxFormBuilder generating code incompatible with old wxPython
     # noinspection PyMethodOverriding
@@ -65,6 +78,8 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
 
         self.net_list.InsertColumn(0, 'Net', width=100) 
         self.net_list.InsertColumn(1, 'Length')
+        self.net_list.InsertColumn(2, 'Δ Median')
+        self.net_list.InsertColumn(3, 'Δ Max')
 
         self.net_data = []
 
@@ -72,10 +87,9 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
         for net in nets:
             index_net = nets.index(net)
             index = self.net_list.InsertStringItem(index_net, net)
-            self.net_list.SetStringItem(index, 1, "0.0")
-            item = self.net_list.GetItem(index, 1)
-            item.SetBackgroundColour(wx.Colour(255,0,0))
             self.net_data.append( (net, 0.0) )
+
+        self.update_list()
 
         self.board = board
         self.nets = nets
@@ -125,11 +139,20 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
         self.refresh()
         event.Skip()
 
+    def update_list(self):
+        maxlen = max(net[1] for net in self.net_data)
+        medlen = median([net[1] for net in self.net_data])
+
+        for i, net in enumerate(self.net_data):
+            self.net_list.SetStringItem(i, 1, "%.2f" % net[1])
+            self.net_list.SetStringItem(i, 2, "%.2f" % (net[1] - medlen))
+            self.net_list.SetStringItem(i, 3, "%.2f" % (net[1] - maxlen))
+
     def refresh(self):
         self.logger.info("Refreshing net lengths")
         start_time = timeit.default_timer()
 
-        # go through all the nets
+        # calculate new net lengths
         for net in self.nets:
             # get tracks on net
             netcode = self.board.GetNetcodeFromNetname(net)
@@ -142,7 +165,8 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
 
             index_net = self.nets.index(net)
             self.net_data[index_net] = (net, length)
-            self.net_list.SetStringItem(index_net, 1, "%.2f" % length)
+
+        self.update_list()
 
         stop_time = timeit.default_timer()
         delta_time = stop_time - start_time
@@ -234,7 +258,8 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
         for net in self.net_data:
             index_net = self.net_data.index(net)
             index = self.net_list.InsertStringItem(index_net, net[0])
-            self.net_list.SetStringItem(index, 1, "%.2f" % net[1])
+
+        self.update_list()
 
         event.Skip()
 
