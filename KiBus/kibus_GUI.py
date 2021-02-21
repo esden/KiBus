@@ -7,7 +7,6 @@
 ## PLEASE DO *NOT* EDIT THIS FILE!
 ###########################################################################
 
-from wx.lib.agw.ultimatelistctrl import ULC_REPORT, UltimateListCtrl
 import wx
 import wx.xrc
 
@@ -28,7 +27,7 @@ class KiBusGUI ( wx.Dialog ):
 		self.m_panel1 = wx.Panel( self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
 		bSizer5 = wx.BoxSizer( wx.VERTICAL )
 
-		self.net_list = UltimateListCtrl( self.m_panel1, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.LC_REPORT, agwStyle=ULC_REPORT )
+		self.net_list = wx.ListCtrl( self.m_panel1, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.LC_REPORT )
 		bSizer5.Add( self.net_list, 1, wx.ALL|wx.EXPAND, 5 )
 
 		bSizer2 = wx.BoxSizer( wx.HORIZONTAL )

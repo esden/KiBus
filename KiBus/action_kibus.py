@@ -140,6 +140,9 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
         event.Skip()
 
     def update_list(self):
+        if len(self.net_data) == 0:
+            return
+
         maxlen = max(net[1] for net in self.net_data)
         medlen = median([net[1] for net in self.net_data])
 
