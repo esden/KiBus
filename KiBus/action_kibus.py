@@ -162,10 +162,9 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
             tracks_on_net = self.board.TracksInNet(netcode)
 
             # sum their length
-            length = 0
-            for t in tracks_on_net:
-                length = length + t.GetLength()/SCALE
+            length = sum(t.GetLength() / SCALE for t in tracks_on_net)
 
+            # update database
             index_net = self.nets.index(net)
             self.net_data[index_net] = (net, length)
 
