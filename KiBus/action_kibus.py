@@ -31,6 +31,8 @@ import sys
 import timeit
 from typing import Union
 
+from wx.core import Colour
+
 if __name__ == '__main__':
     import kibus_GUI
 else:
@@ -91,11 +93,11 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
             index = self.net_list.InsertStringItem(index_net, net)
             self.net_data.append( (net, 0.0) )
 
+        self.logger = logger
         self.update_list()
 
         self.board = board
         self.nets = nets
-        self.logger = logger
 
         self.column_sorted = 0
         self.column_0_dir = 0
@@ -146,6 +148,8 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
             return
 
         maxlen = max(net[1] for net in self.net_data)
+        minlen = min(net[1] for net in self.net_data)
+        delta = maxlen - minlen
         medlen = median([net[1] for net in self.net_data])
 
         for i, net in enumerate(self.net_data):
@@ -154,11 +158,24 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
             self.net_list.SetStringItem(i, 3, "%.2f" % (net[1] - maxlen))
             self.gnet_list.SetCellValue(i, 0, net[0])
             self.gnet_list.SetCellValue(i, 1, "%.2f" % net[1])
-            self.gnet_list.SetCellValue(i, 2, "%.2f" % (net[1] - medlen))
-            self.gnet_list.SetCellValue(i, 3, "%.2f" % (net[1] - maxlen))
+            meddiff = (net[1] - medlen)
+            self.gnet_list.SetCellValue(i, 2, "%.2f" % meddiff)
+            maxdiff = (net[1] - maxlen)
+            self.gnet_list.SetCellValue(i, 3, "%.2f" % maxdiff)
+            if (delta != 0):
+                #self.logger.info("delta {} maxdiff {}, ratio {}".format(delta, maxdiff, ratio))
+                lenratio = net[1] / maxlen
+                lencolor_val = round(255 - (200 * lenratio))
+                self.gnet_list.SetCellBackgroundColour(i, 1, wx.Colour(255, lencolor_val, lencolor_val))
+                medratio = abs(meddiff) / delta
+                medcolor_val = round(255 - (200 * medratio))
+                self.gnet_list.SetCellBackgroundColour(i, 2, wx.Colour(255, medcolor_val, medcolor_val))
+                maxratio = maxdiff / -delta
+                maxcolor_val = round(255 - (200 * maxratio))
+                self.gnet_list.SetCellBackgroundColour(i, 3, wx.Colour(255, maxcolor_val, maxcolor_val))
 
         self.gnet_list.AutoSize()
-        self.gnet_list.ForceRefresh()
+        self.Layout()
 
     def refresh(self):
         self.logger.info("Refreshing net lengths")
