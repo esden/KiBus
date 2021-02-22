@@ -10,6 +10,7 @@
 from wx.lib.agw.ultimatelistctrl import ULC_REPORT, UltimateListCtrl
 import wx
 import wx.xrc
+import wx.grid
 
 ###########################################################################
 ## Class KiBusGUI
@@ -18,7 +19,7 @@ import wx.xrc
 class KiBusGUI ( wx.Dialog ):
 
 	def __init__( self, parent ):
-		wx.Dialog.__init__ ( self, parent, id = wx.ID_ANY, title = u"KiBus", pos = wx.DefaultPosition, size = wx.Size( 353,454 ), style = wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER )
+		wx.Dialog.__init__ ( self, parent, id = wx.ID_ANY, title = u"KiBus", pos = wx.DefaultPosition, size = wx.Size( 446,522 ), style = wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER )
 
 		self.SetSizeHints( wx.DefaultSize, wx.DefaultSize )
 		self.SetBackgroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_3DLIGHT ) )
@@ -28,8 +29,39 @@ class KiBusGUI ( wx.Dialog ):
 		self.m_panel1 = wx.Panel( self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
 		bSizer5 = wx.BoxSizer( wx.VERTICAL )
 
-		self.net_list = UltimateListCtrl( self.m_panel1, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.LC_REPORT, agwStyle=ULC_REPORT )
+		self.net_list = UltimateListCtrl( self.m_panel1, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.LC_REPORT,agwStyle=ULC_REPORT )
 		bSizer5.Add( self.net_list, 1, wx.ALL|wx.EXPAND, 5 )
+
+		self.gnet_list = wx.grid.Grid( self.m_panel1, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, 0 )
+
+		# Grid
+		self.gnet_list.CreateGrid( 0, 4 )
+		self.gnet_list.EnableEditing( False )
+		self.gnet_list.EnableGridLines( True )
+		self.gnet_list.EnableDragGridSize( True )
+		self.gnet_list.SetMargins( 0, 0 )
+
+		# Columns
+		self.gnet_list.EnableDragColMove( False )
+		self.gnet_list.EnableDragColSize( True )
+		self.gnet_list.SetColLabelSize( 30 )
+		self.gnet_list.SetColLabelValue( 0, u"Net" )
+		self.gnet_list.SetColLabelValue( 1, u"Len" )
+		self.gnet_list.SetColLabelValue( 2, u"dMed" )
+		self.gnet_list.SetColLabelValue( 3, u"dMax" )
+		self.gnet_list.SetColLabelAlignment( wx.ALIGN_CENTER, wx.ALIGN_CENTER )
+
+		# Rows
+		self.gnet_list.AutoSizeRows()
+		self.gnet_list.EnableDragRowSize( True )
+		self.gnet_list.SetRowLabelSize( 0 )
+		self.gnet_list.SetRowLabelAlignment( wx.ALIGN_CENTER, wx.ALIGN_CENTER )
+
+		# Label Appearance
+
+		# Cell Defaults
+		self.gnet_list.SetDefaultCellAlignment( wx.ALIGN_LEFT, wx.ALIGN_TOP )
+		bSizer5.Add( self.gnet_list, 1, wx.ALL|wx.EXPAND, 5 )
 
 		bSizer2 = wx.BoxSizer( wx.HORIZONTAL )
 

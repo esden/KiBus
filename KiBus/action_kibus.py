@@ -81,6 +81,8 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
         self.net_list.InsertColumn(2, 'Δ Median')
         self.net_list.InsertColumn(3, 'Δ Max')
 
+        self.gnet_list.AppendRows(len(nets))
+
         self.net_data = []
 
         nets.sort()
@@ -150,6 +152,13 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
             self.net_list.SetStringItem(i, 1, "%.2f" % net[1])
             self.net_list.SetStringItem(i, 2, "%.2f" % (net[1] - medlen))
             self.net_list.SetStringItem(i, 3, "%.2f" % (net[1] - maxlen))
+            self.gnet_list.SetCellValue(i, 0, net[0])
+            self.gnet_list.SetCellValue(i, 1, "%.2f" % net[1])
+            self.gnet_list.SetCellValue(i, 2, "%.2f" % (net[1] - medlen))
+            self.gnet_list.SetCellValue(i, 3, "%.2f" % (net[1] - maxlen))
+
+        self.gnet_list.AutoSize()
+        self.gnet_list.ForceRefresh()
 
     def refresh(self):
         self.logger.info("Refreshing net lengths")
