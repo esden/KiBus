@@ -351,7 +351,7 @@ class KiBus(pcbnew.ActionPlugin):
         self.category = "Bus Length Matching Helper"
         self.description = "A helper dialog that displays bus signal lengts with comparison and sorting"
         self.icon_file_name = os.path.join(
-                os.path.dirname(__file__), 'kibus.png')
+                os.path.dirname(__file__), 'kibus-icon.png')
                 
     def Run(self):
         # load board
