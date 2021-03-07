@@ -29,6 +29,7 @@ import os
 import logging
 import sys
 import timeit
+from packaging import version
 from typing import Union
 
 from wx.core import Colour, KeyEvent
@@ -49,9 +50,12 @@ with open(version_filename) as f:
 # > V5.1.5 and V 5.99 build information
 if hasattr(pcbnew, 'GetBuildVersion'):
     BUILD_VERSION = pcbnew.GetBuildVersion()
+    kicad_version = version.parse(BUILD_VERSION.strip("()").split("-")[0])
 else:
     BUILD_VERSION = "Unknown"
+    kicad_version = version.Version("0.0.0")
 
+is_kicad_stable = kicad_version < version.Version("5.99.0")
 
 def median(x: Union[int, float]) -> float:
     """Return median from a list of values.
@@ -384,7 +388,10 @@ class KiBus(pcbnew.ActionPlugin):
         sl_err = StreamToLogger(stderr_logger, logging.ERROR)
         sys.stderr = sl_err
 
-        _pcbnew_frame = [x for x in wx.GetTopLevelWindows() if x.GetTitle().lower().endswith('pcb editor')][0]
+        if is_kicad_stable:
+            _pcbnew_frame = [x for x in wx.GetTopLevelWindows() if x.GetTitle().lower().startswith('pcbnew')][0]
+        else:
+            _pcbnew_frame = [x for x in wx.GetTopLevelWindows() if x.GetTitle().lower().endswith('pcb editor')][0]
 
         # find all selected tracks and pads
         nets = set()
@@ -392,7 +399,10 @@ class KiBus(pcbnew.ActionPlugin):
 
         nets.update([track.GetNetname() for track in selected_tracks])
 
-        modules = board.GetFootprints()
+        if is_kicad_stable:
+            modules = board.GetModules()
+        else:
+            modules = board.GetFootprints()
         for mod in modules:
             pads = mod.Pads()
             nets.update([pad.GetNetname() for pad in pads if pad.IsSelected()])
