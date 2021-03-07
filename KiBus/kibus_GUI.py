@@ -7,7 +7,6 @@
 ## PLEASE DO *NOT* EDIT THIS FILE!
 ###########################################################################
 
-from wx.lib.agw.ultimatelistctrl import ULC_REPORT, UltimateListCtrl
 import wx
 import wx.xrc
 import wx.grid
@@ -29,9 +28,6 @@ class KiBusGUI ( wx.Dialog ):
 		self.m_panel1 = wx.Panel( self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
 		bSizer5 = wx.BoxSizer( wx.VERTICAL )
 
-		self.net_list = UltimateListCtrl( self.m_panel1, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.LC_REPORT,agwStyle=ULC_REPORT )
-		bSizer5.Add( self.net_list, 1, wx.ALL|wx.EXPAND, 5 )
-
 		self.gnet_list = wx.grid.Grid( self.m_panel1, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, 0 )
 
 		# Grid
@@ -47,8 +43,8 @@ class KiBusGUI ( wx.Dialog ):
 		self.gnet_list.SetColLabelSize( 30 )
 		self.gnet_list.SetColLabelValue( 0, u"Net" )
 		self.gnet_list.SetColLabelValue( 1, u"Len" )
-		self.gnet_list.SetColLabelValue( 2, u"dMed" )
-		self.gnet_list.SetColLabelValue( 3, u"dMax" )
+		self.gnet_list.SetColLabelValue( 2, u"ΔMed" )
+		self.gnet_list.SetColLabelValue( 3, u"ΔMax" )
 		self.gnet_list.SetColLabelAlignment( wx.ALIGN_CENTER, wx.ALIGN_CENTER )
 
 		# Rows
@@ -106,10 +102,10 @@ class KiBusGUI ( wx.Dialog ):
 		self.Centre( wx.BOTH )
 
 		# Connect Events
-		self.net_list.Bind( wx.EVT_LIST_COL_CLICK, self.sort_items )
-		self.net_list.Bind( wx.EVT_LIST_ITEM_DESELECTED, self.item_selected )
-		self.net_list.Bind( wx.EVT_LIST_ITEM_SELECTED, self.item_selected )
-		self.net_list.Bind( wx.EVT_LIST_KEY_DOWN, self.delete_items )
+		self.gnet_list.Bind( wx.grid.EVT_GRID_CELL_LEFT_CLICK, self.on_grid_cell_lclick )
+		self.gnet_list.Bind( wx.grid.EVT_GRID_LABEL_LEFT_CLICK, self.on_grid_label_lclick )
+		self.gnet_list.Bind( wx.grid.EVT_GRID_RANGE_SELECT, self.on_grid_range_select )
+		self.gnet_list.Bind( wx.EVT_KEY_DOWN, self.on_grid_key_down )
 		self.chk_cont.Bind( wx.EVT_CHECKBOX, self.cont_refresh_toggle )
 		self.btn_refresh.Bind( wx.EVT_BUTTON, self.on_btn_refresh )
 		self.btn_ok.Bind( wx.EVT_BUTTON, self.on_btn_ok )
@@ -119,14 +115,16 @@ class KiBusGUI ( wx.Dialog ):
 
 
 	# Virtual event handlers, overide them in your derived class
-	def sort_items( self, event ):
+	def on_grid_cell_lclick( self, event ):
 		event.Skip()
 
-	def item_selected( self, event ):
+	def on_grid_label_lclick( self, event ):
 		event.Skip()
 
+	def on_grid_range_select( self, event ):
+		event.Skip()
 
-	def delete_items( self, event ):
+	def on_grid_key_down( self, event ):
 		event.Skip()
 
 	def cont_refresh_toggle( self, event ):

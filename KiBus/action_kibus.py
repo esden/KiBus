@@ -31,7 +31,8 @@ import sys
 import timeit
 from typing import Union
 
-from wx.core import Colour
+from wx.core import Colour, KeyEvent
+from wx.grid import GridEvent, GridRangeSelectEvent
 
 if __name__ == '__main__':
     import kibus_GUI
@@ -75,13 +76,8 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
             # wxPython 4
             super(KiBusDialog, self).SetSizeHints(sz1, sz2)
 
-    def __init__(self,  parent, board, nets, logger):
+    def __init__(self,  parent, board: pcbnew.BOARD, nets, logger: logging.Logger):
         kibus_GUI.KiBusGUI.__init__(self, parent)
-
-        self.net_list.InsertColumn(0, 'Net', width=100) 
-        self.net_list.InsertColumn(1, 'Length')
-        self.net_list.InsertColumn(2, 'Δ Median')
-        self.net_list.InsertColumn(3, 'Δ Max')
 
         self.gnet_list.AppendRows(len(nets))
 
@@ -90,7 +86,6 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
         nets.sort()
         for net in nets:
             index_net = nets.index(net)
-            index = self.net_list.InsertStringItem(index_net, net)
             self.net_data.append( (net, 0.0) )
 
         self.logger = logger
@@ -153,9 +148,6 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
         medlen = median([net[1] for net in self.net_data])
 
         for i, net in enumerate(self.net_data):
-            self.net_list.SetStringItem(i, 1, "%.2f" % net[1])
-            self.net_list.SetStringItem(i, 2, "%.2f" % (net[1] - medlen))
-            self.net_list.SetStringItem(i, 3, "%.2f" % (net[1] - maxlen))
             self.gnet_list.SetCellValue(i, 0, net[0])
             self.gnet_list.SetCellValue(i, 1, "%.2f" % net[1])
             meddiff = (net[1] - medlen)
@@ -204,27 +196,75 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
             self.refresh_time = 0.05
         self.lbl_refresh_time.SetLabelText(u"Refresh time: %.2f s" % delta_time)
 
-    def delete_items(self, event):
-        self.logger.info("Deleting nets")
-        # test if delete key was pressed
-        if event.GetKeyCode() == wx.WXK_DELETE:
-            # find selected items
-            selected_items = []
-            for index in range(self.net_list.GetItemCount()):
-                if self.net_list.IsSelected(index):
-                    selected_items.append( (index, self.nets[index]))
+    def on_grid_range_select(self, event: GridRangeSelectEvent):
+        if not event.Selecting():
+            self.logger.info("Not Selecting")
+            return
 
-            selected_items.sort(key=lambda tup: tup[0], reverse=True)
+        self.logger.info("Range Select")
 
-            # remove selected items from the back
-            for item in selected_items:
-                self.net_list.DeleteItem(item[0])
-                del self.nets[item[0]]
-                del self.net_data[item[0]]
+        top_row = event.TopRow
+        bot_row = event.BottomRow
+        left_col = event.LeftCol
+        right_col = event.RightCol
+        self.logger.info(f"area {left_col} {top_row} {right_col} {bot_row}")
+        self.gnet_list.ClearSelection()
 
         event.Skip()
 
-    def item_selected(self, event):
+    def on_grid_label_lclick(self, event: GridEvent):
+        column = event.Col
+        row = event.Row
+        self.logger.info("Label Click")
+        self.logger.info(f"col {column} row {row}")
+
+        if row != -1:
+            self.logger.error("Row Label Click, expected Column")
+            return
+
+        self.logger.info("Sorting list")
+        # find which columnt to sort
+        self.column_sorted = event.Col
+
+        # sort column 0
+        if self.column_sorted == 0:
+            # ascending
+            if self.column_0_dir == 0:
+                self.column_0_dir = 1
+                self.net_data.sort(key=lambda tup: tup[0], reverse=True)
+                self.gnet_list.SetSortingColumn(self.column_sorted, ascending=True)
+            # descending
+            else:
+                self.column_0_dir = 0
+                self.net_data.sort(key=lambda tup: tup[0], reverse=False)
+                self.gnet_list.SetSortingColumn(self.column_sorted, ascending=False)
+        # sort column 1
+        else:
+            # ascending
+            if self.column_1_dir == 0:
+                self.column_1_dir = 1
+                self.net_data.sort(key=lambda tup: tup[1], reverse=True)
+                self.gnet_list.SetSortingColumn(self.column_sorted, ascending=True)
+            # descending
+            else:
+                self.column_1_dir = 0
+                self.net_data.sort(key=lambda tup: tup[1], reverse=False)
+                self.gnet_list.SetSortingColumn(self.column_sorted, ascending=False)
+                # sort
+
+        self.nets = [x[0] for x in self.net_data]
+
+        self.update_list()
+
+        event.Skip()
+
+    def on_grid_cell_lclick(self, event: GridEvent):
+        column = event.Col
+        row = event.Row
+
+        self.logger.info("Cell Click")
+        self.logger.info(f"col {column} row {row}")
+
         tracks = self.board.GetTracks()
         # get all tracks which we are interested in
         list_tracks = []
@@ -240,9 +280,12 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
         pcbnew.Refresh()
         # find selected tracks
         selected_items = []
-        for index in range(self.net_list.GetItemCount()):
-            if self.net_list.IsSelected(index):
-                selected_items.append(self.nets[index])        
+        # We currently can only highlight one net at a time
+        # For multi net highlight we need to implement multi row selection
+        #for index in range(self.net_list.GetItemCount()):
+        #    if self.net_list.IsSelected(index):
+        #        selected_items.append(self.nets[index])
+        selected_items.append(self.nets[row])
 
         self.logger.info("Adding highlights for nets:\n" + repr(selected_items))
         for track in list_tracks:
@@ -250,44 +293,46 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
                 track.SetBrightened()
 
         pcbnew.Refresh()
+
         event.Skip()
 
-    def sort_items(self, event):
-        self.logger.info("Sorting list")
-        # find which columnt to sort
-        self.column_sorted = event.m_col
+    def on_grid_key_down(self, event: KeyEvent):
+        key = event.KeyCode
+        row = self.gnet_list.GridCursorRow
+        self.logger.info("KeyDown {!r} at {}".format(key, row))
 
-        # sort column 0
-        if self.column_sorted == 0:
-            # ascending
-            if self.column_0_dir == 0:
-                self.column_0_dir = 1
-                self.net_data.sort(key=lambda tup: tup[0], reverse=True)
-            # descending
-            else:
-                self.column_0_dir = 0
-                self.net_data.sort(key=lambda tup: tup[0], reverse=False)
-        # sort column 1
-        else:
-            # ascending
-            if self.column_1_dir == 0:
-                self.column_1_dir = 1
-                self.net_data.sort(key=lambda tup: tup[1], reverse=True)
-            # descending
-            else:
-                self.column_1_dir = 0
-                self.net_data.sort(key=lambda tup: tup[1], reverse=False)
-                # sort
+        # test if delete key was pressed
+        if key in [wx.WXK_DELETE, wx.WXK_BACK]:
+            self.logger.info(f"Deleting row {row} " + repr(self.nets[row]))
+            # Clear highlight for the net that is to be deleted
+            tracks = self.board.GetTracks()
+            for track in tracks:
+                if track.GetNetname() in self.nets[row]:
+                    track.ClearBrightened()
+            pcbnew.Refresh()
 
-        self.nets = [x[0] for x in self.net_data]
+            # Delete the net from local database
+            del self.nets[row]
+            del self.net_data[row]
 
-        # clear and repopulate the list ctrl
-        self.net_list.DeleteAllItems()
-        for net in self.net_data:
-            index_net = self.net_data.index(net)
-            index = self.net_list.InsertStringItem(index_net, net[0])
+            # Delete the net from the grid widget
+            self.gnet_list.DeleteRows(pos=row)
 
-        self.update_list()
+            # We can't currently delete multiple rows
+            # We will get it back when selection is implemented
+            # find selected items
+            # selected_items = []
+            #for index in range(self.net_list.GetItemCount()):
+            #    if self.net_list.IsSelected(index):
+            #        selected_items.append( (index, self.nets[index]))
+
+            #selected_items.sort(key=lambda tup: tup[0], reverse=True)
+
+            # remove selected items from the back
+            #for item in selected_items:
+            #    self.net_list.DeleteItem(item[0])
+            #    del self.nets[item[0]]
+            #    del self.net_data[item[0]]
 
         event.Skip()
 
