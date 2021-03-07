@@ -139,7 +139,9 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
 
     def on_update(self, event):
         self.logger.info("Autimatic refresh")
+        x, y = self.gnet_list.GetViewStart()
         self.refresh()
+        self.gnet_list.Scroll(x, y)
         event.Skip()
 
     def update_list(self):
