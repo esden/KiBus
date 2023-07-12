@@ -55,7 +55,7 @@ class KiBusGUI ( wx.Dialog ):
 		# Columns
 		self.gnet_list.EnableDragColMove( False )
 		self.gnet_list.EnableDragColSize( True )
-		self.gnet_list.SetColLabelValue( 0, u"Wire" )
+		self.gnet_list.SetColLabelValue( 0, u"Sig" )
 		self.gnet_list.SetColLabelValue( 1, u"Len" )
 		self.gnet_list.SetColLabelValue( 2, u"ΔMed" )
 		self.gnet_list.SetColLabelValue( 3, u"ΔMax" )

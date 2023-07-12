@@ -93,13 +93,13 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
 
         self.gnet_list.AppendRows(len(bus_data[self.active_bus]))
 
-        self.wire_data = {}
+        self.signal_data = {}
 
         # nets.sort()
-        for wire in bus_data[self.active_bus]:
-             self.wire_data[wire] = 0.0
+        for signal in bus_data[self.active_bus]:
+             self.signal_data[signal] = 0.0
 
-        print(f"bus_data {self.wire_data}")
+        print(f"bus_data {self.signal_data}")
 
         self.logger = logger
         self.update_list()
@@ -117,7 +117,7 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
 
         self.logger.info("Length stats gui initialized")
         self.logger.info("Active Bus for stats is: " + repr(self.active_bus))
-        self.logger.info("Active Bus wires;\n" + repr(self.bus_data[self.active_bus]))
+        self.logger.info("Active Bus signals;\n" + repr(self.bus_data[self.active_bus]))
 
     def cont_refresh_toggle(self, event):
         if self.chk_cont.IsChecked():
@@ -154,26 +154,26 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
         event.Skip()
 
     def update_list(self):
-        if len(self.wire_data) == 0:
+        if len(self.signal_data) == 0:
             return
 
         # TODO check if row count is still correct
 
-        maxlen = max(self.wire_data.values())
-        minlen = min(self.wire_data.values())
+        maxlen = max(self.signal_data.values())
+        minlen = min(self.signal_data.values())
         delta = maxlen - minlen
-        medlen = median(self.wire_data.values())
+        medlen = median(self.signal_data.values())
 
-        for i, wire in enumerate(self.wire_data.items()):
-            self.gnet_list.SetCellValue(i, 0, wire[0])
-            self.gnet_list.SetCellValue(i, 1, "%.2f" % wire[1])
-            meddiff = (wire[1] - medlen)
+        for i, signal in enumerate(self.signal_data.items()):
+            self.gnet_list.SetCellValue(i, 0, signal[0])
+            self.gnet_list.SetCellValue(i, 1, "%.2f" % signal[1])
+            meddiff = (signal[1] - medlen)
             self.gnet_list.SetCellValue(i, 2, "%.2f" % meddiff)
-            maxdiff = (wire[1] - maxlen)
+            maxdiff = (signal[1] - maxlen)
             self.gnet_list.SetCellValue(i, 3, "%.2f" % maxdiff)
             if (delta != 0):
                 #self.logger.info("delta {} maxdiff {}, ratio {}".format(delta, maxdiff, ratio))
-                lenratio = wire[1] / maxlen
+                lenratio = signal[1] / maxlen
                 lencolor_val = round(255 - (200 * lenratio))
                 self.gnet_list.SetCellBackgroundColour(i, 1, wx.Colour(255, lencolor_val, lencolor_val))
                 medratio = abs(meddiff) / delta
@@ -191,8 +191,8 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
         start_time = timeit.default_timer()
 
         # calculate new net lengths
-        for wire, nets in self.bus_data[self.active_bus].items():
-            self.wire_data[wire] = 0.0
+        for signal, nets in self.bus_data[self.active_bus].items():
+            self.signal_data[signal] = 0.0
             for net in nets:
                 # get tracks on net
                 netcode = self.board.GetNetcodeFromNetname(net)
@@ -202,7 +202,7 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
                 length = sum(t.GetLength() / SCALE for t in tracks_on_net)
 
                 # update database
-                self.wire_data[wire] += length
+                self.signal_data[signal] += length
 
         self.update_list()
 
@@ -249,24 +249,24 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
             # ascending
             if self.column_0_dir == 0:
                 self.column_0_dir = 1
-                self.wire_data = dict(sorted(self.wire_data.items(), reverse=True))
+                self.signal_data = dict(sorted(self.signal_data.items(), reverse=True))
                 self.gnet_list.SetSortingColumn(self.column_sorted, ascending=True)
             # descending
             else:
                 self.column_0_dir = 0
-                self.wire_data = dict(sorted(self.wire_data.items(), reverse=False))
+                self.signal_data = dict(sorted(self.signal_data.items(), reverse=False))
                 self.gnet_list.SetSortingColumn(self.column_sorted, ascending=False)
         # sort column 1
         else:
             # ascending
             if self.column_1_dir == 0:
                 self.column_1_dir = 1
-                self.wire_data = dict(sorted(self.wire_data.items(), key=lambda item : item[1], reverse=True))
+                self.signal_data = dict(sorted(self.signal_data.items(), key=lambda item : item[1], reverse=True))
                 self.gnet_list.SetSortingColumn(self.column_sorted, ascending=True)
             # descending
             else:
                 self.column_1_dir = 0
-                self.wire_data = dict(sorted(self.wire_data.items(), key=lambda item : item[1], reverse=False))
+                self.signal_data = dict(sorted(self.signal_data.items(), key=lambda item : item[1], reverse=False))
                 self.gnet_list.SetSortingColumn(self.column_sorted, ascending=False)
                 # sort
 
@@ -358,24 +358,24 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
         self.active_bus = self.choice_bus.GetString(event.GetInt())
 
         gnet_row_count = self.gnet_list.GetNumberRows()
-        wire_count = len(self.bus_data[self.active_bus])
+        signal_count = len(self.bus_data[self.active_bus])
 
-        print(f"Current row count is {gnet_row_count}, new wire count is {wire_count}")
-        if gnet_row_count < wire_count:
-            append_cnt = wire_count - gnet_row_count
+        print(f"Current row count is {gnet_row_count}, new signal count is {signal_count}")
+        if gnet_row_count < signal_count:
+            append_cnt = signal_count - gnet_row_count
             print(f"Appending {append_cnt} rows")
             self.gnet_list.AppendRows(append_cnt)
-        elif gnet_row_count > wire_count:
-            delete_cnt = gnet_row_count - wire_count
+        elif gnet_row_count > signal_count:
+            delete_cnt = gnet_row_count - signal_count
             print(f"Deleting {delete_cnt} rows")
             self.gnet_list.DeleteRows(0, delete_cnt)
 
-        self.wire_data = {}
+        self.signal_data = {}
 
-        for wire in self.bus_data[self.active_bus]:
-            self.wire_data[wire] = 0.0
+        for signal in self.bus_data[self.active_bus]:
+            self.signal_data[signal] = 0.0
 
-        print(f"bus_data {self.wire_data}")
+        print(f"bus_data {self.signal_data}")
 
         self.update_list()
 
@@ -457,14 +457,14 @@ class KiBus(pcbnew.ActionPlugin):
         all_nets = [str(n) for n in board.GetNetsByName().keys()]
         print(f"All nets {all_nets}")
         if data:
-            for bus, bus_wires in data.items():
-                for wire, nets in bus_wires.items():
+            for bus, bus_signals in data.items():
+                for signal, nets in bus_signals.items():
                     for net in nets:
                         if net in all_nets:
                             matched_nets.append(net)
-                            print(f"Bus '{bus}', Wire '{wire}', Net '{net}' added")
+                            print(f"Bus '{bus}', Signal '{signal}', Net '{net}' added")
                         else:
-                            print(f"Bus '{bus}', Wire '{wire}', Net '{net}' NOT found in board")
+                            print(f"Bus '{bus}', Signal '{signal}', Net '{net}' NOT found in board")
 
         # # find all selected tracks and pads
         # matched_nets = set()
