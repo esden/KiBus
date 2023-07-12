@@ -4,7 +4,7 @@
 # KiBus action plugin based on Mitja Nemec length stats action plugin.
 #
 # Copyright (C) 2018 Mitja Nemec
-# Copyright (C) 2020 Piotr Esden-Tempski
+# Copyright (C) 2020-2023 Piotr Esden-Tempski
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ import timeit
 from packaging import version
 from typing import Union
 
-from wx.core import Colour, KeyEvent
+from wx.core import Colour, KeyEvent, CommandEvent
 from wx.grid import GridEvent, GridRangeSelectEvent
 
 if __name__ == '__main__':
@@ -80,23 +80,31 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
             # wxPython 4
             super(KiBusDialog, self).SetSizeHints(sz1, sz2)
 
-    def __init__(self,  parent, board: pcbnew.BOARD, nets, logger: logging.Logger):
+    def __init__(self,  parent, board: pcbnew.BOARD, bus_data: dict, logger: logging.Logger):
         kibus_GUI.KiBusGUI.__init__(self, parent)
 
-        self.gnet_list.AppendRows(len(nets))
+        self.bus_data = bus_data
 
-        self.net_data = []
+        self.busses = list(bus_data.keys())
+        self.active_bus = self.busses[0]
 
-        nets.sort()
-        for net in nets:
-            index_net = nets.index(net)
-            self.net_data.append( (net, 0.0) )
+        self.choice_bus.Append(self.busses)
+        self.choice_bus.Select(0)
+
+        self.gnet_list.AppendRows(len(bus_data[self.active_bus]))
+
+        self.wire_data = {}
+
+        # nets.sort()
+        for wire in bus_data[self.active_bus]:
+             self.wire_data[wire] = 0.0
+
+        print(f"bus_data {self.wire_data}")
 
         self.logger = logger
         self.update_list()
 
         self.board = board
-        self.nets = nets
 
         self.column_sorted = 0
         self.column_0_dir = 0
@@ -108,7 +116,8 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
         self.Bind(wx.EVT_TIMER, self.on_update, self.timer)
 
         self.logger.info("Length stats gui initialized")
-        self.logger.info("Nets for stats are;\n" + repr(self.nets))
+        self.logger.info("Active Bus for stats is: " + repr(self.active_bus))
+        self.logger.info("Active Bus wires;\n" + repr(self.bus_data[self.active_bus]))
 
     def cont_refresh_toggle(self, event):
         if self.chk_cont.IsChecked():
@@ -145,24 +154,26 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
         event.Skip()
 
     def update_list(self):
-        if len(self.net_data) == 0:
+        if len(self.wire_data) == 0:
             return
 
-        maxlen = max(net[1] for net in self.net_data)
-        minlen = min(net[1] for net in self.net_data)
-        delta = maxlen - minlen
-        medlen = median([net[1] for net in self.net_data])
+        # TODO check if row count is still correct
 
-        for i, net in enumerate(self.net_data):
-            self.gnet_list.SetCellValue(i, 0, net[0])
-            self.gnet_list.SetCellValue(i, 1, "%.2f" % net[1])
-            meddiff = (net[1] - medlen)
+        maxlen = max(self.wire_data.values())
+        minlen = min(self.wire_data.values())
+        delta = maxlen - minlen
+        medlen = median(self.wire_data.values())
+
+        for i, wire in enumerate(self.wire_data.items()):
+            self.gnet_list.SetCellValue(i, 0, wire[0])
+            self.gnet_list.SetCellValue(i, 1, "%.2f" % wire[1])
+            meddiff = (wire[1] - medlen)
             self.gnet_list.SetCellValue(i, 2, "%.2f" % meddiff)
-            maxdiff = (net[1] - maxlen)
+            maxdiff = (wire[1] - maxlen)
             self.gnet_list.SetCellValue(i, 3, "%.2f" % maxdiff)
             if (delta != 0):
                 #self.logger.info("delta {} maxdiff {}, ratio {}".format(delta, maxdiff, ratio))
-                lenratio = net[1] / maxlen
+                lenratio = wire[1] / maxlen
                 lencolor_val = round(255 - (200 * lenratio))
                 self.gnet_list.SetCellBackgroundColour(i, 1, wx.Colour(255, lencolor_val, lencolor_val))
                 medratio = abs(meddiff) / delta
@@ -180,17 +191,18 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
         start_time = timeit.default_timer()
 
         # calculate new net lengths
-        for net in self.nets:
-            # get tracks on net
-            netcode = self.board.GetNetcodeFromNetname(net)
-            tracks_on_net = self.board.TracksInNet(netcode)
+        for wire, nets in self.bus_data[self.active_bus].items():
+            self.wire_data[wire] = 0.0
+            for net in nets:
+                # get tracks on net
+                netcode = self.board.GetNetcodeFromNetname(net)
+                tracks_on_net = self.board.TracksInNet(netcode)
 
-            # sum their length
-            length = sum(t.GetLength() / SCALE for t in tracks_on_net)
+                # sum their length
+                length = sum(t.GetLength() / SCALE for t in tracks_on_net)
 
-            # update database
-            index_net = self.nets.index(net)
-            self.net_data[index_net] = (net, length)
+                # update database
+                self.wire_data[wire] += length
 
         self.update_list()
 
@@ -237,28 +249,26 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
             # ascending
             if self.column_0_dir == 0:
                 self.column_0_dir = 1
-                self.net_data.sort(key=lambda tup: tup[0], reverse=True)
+                self.wire_data = dict(sorted(self.wire_data.items(), reverse=True))
                 self.gnet_list.SetSortingColumn(self.column_sorted, ascending=True)
             # descending
             else:
                 self.column_0_dir = 0
-                self.net_data.sort(key=lambda tup: tup[0], reverse=False)
+                self.wire_data = dict(sorted(self.wire_data.items(), reverse=False))
                 self.gnet_list.SetSortingColumn(self.column_sorted, ascending=False)
         # sort column 1
         else:
             # ascending
             if self.column_1_dir == 0:
                 self.column_1_dir = 1
-                self.net_data.sort(key=lambda tup: tup[1], reverse=True)
+                self.wire_data = dict(sorted(self.wire_data.items(), key=lambda item : item[1], reverse=True))
                 self.gnet_list.SetSortingColumn(self.column_sorted, ascending=True)
             # descending
             else:
                 self.column_1_dir = 0
-                self.net_data.sort(key=lambda tup: tup[1], reverse=False)
+                self.wire_data = dict(sorted(self.wire_data.items(), key=lambda item : item[1], reverse=False))
                 self.gnet_list.SetSortingColumn(self.column_sorted, ascending=False)
                 # sort
-
-        self.nets = [x[0] for x in self.net_data]
 
         self.update_list()
 
@@ -308,37 +318,66 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
         self.logger.info("KeyDown {!r} at {}".format(key, row))
 
         # test if delete key was pressed
-        if key in [wx.WXK_DELETE, wx.WXK_BACK]:
-            self.logger.info(f"Deleting row {row} " + repr(self.nets[row]))
-            # Clear highlight for the net that is to be deleted
-            tracks = self.board.GetTracks()
-            for track in tracks:
-                if track.GetNetname() in self.nets[row]:
-                    track.ClearBrightened()
-            pcbnew.Refresh()
+        # if key in [wx.WXK_DELETE, wx.WXK_BACK]:
+        #     self.logger.info(f"Deleting row {row} " + repr(self.nets[row]))
+        #     # Clear highlight for the net that is to be deleted
+        #     tracks = self.board.GetTracks()
+        #     for track in tracks:
+        #         if track.GetNetname() in self.nets[row]:
+        #             track.ClearBrightened()
+        #     pcbnew.Refresh()
 
-            # Delete the net from local database
-            del self.nets[row]
-            del self.net_data[row]
+        #     # Delete the net from local database
+        #     del self.nets[row]
+        #     del self.net_data[row]
 
-            # Delete the net from the grid widget
-            self.gnet_list.DeleteRows(pos=row)
+        #     # Delete the net from the grid widget
+        #     self.gnet_list.DeleteRows(pos=row)
 
-            # We can't currently delete multiple rows
-            # We will get it back when selection is implemented
-            # find selected items
-            # selected_items = []
-            #for index in range(self.net_list.GetItemCount()):
-            #    if self.net_list.IsSelected(index):
-            #        selected_items.append( (index, self.nets[index]))
+        #     # We can't currently delete multiple rows
+        #     # We will get it back when selection is implemented
+        #     # find selected items
+        #     # selected_items = []
+        #     #for index in range(self.net_list.GetItemCount()):
+        #     #    if self.net_list.IsSelected(index):
+        #     #        selected_items.append( (index, self.nets[index]))
 
-            #selected_items.sort(key=lambda tup: tup[0], reverse=True)
+        #     #selected_items.sort(key=lambda tup: tup[0], reverse=True)
 
-            # remove selected items from the back
-            #for item in selected_items:
-            #    self.net_list.DeleteItem(item[0])
-            #    del self.nets[item[0]]
-            #    del self.net_data[item[0]]
+        #     # remove selected items from the back
+        #     #for item in selected_items:
+        #     #    self.net_list.DeleteItem(item[0])
+        #     #    del self.nets[item[0]]
+        #     #    del self.net_data[item[0]]
+
+        event.Skip()
+
+
+    def on_choice_bus(self, event: CommandEvent):
+        print(f"choice bus event {event.GetInt()} {self.choice_bus.GetString(event.GetInt())}")
+        self.active_bus = self.choice_bus.GetString(event.GetInt())
+
+        gnet_row_count = self.gnet_list.GetNumberRows()
+        wire_count = len(self.bus_data[self.active_bus])
+
+        print(f"Current row count is {gnet_row_count}, new wire count is {wire_count}")
+        if gnet_row_count < wire_count:
+            append_cnt = wire_count - gnet_row_count
+            print(f"Appending {append_cnt} rows")
+            self.gnet_list.AppendRows(append_cnt)
+        elif gnet_row_count > wire_count:
+            delete_cnt = gnet_row_count - wire_count
+            print(f"Deleting {delete_cnt} rows")
+            self.gnet_list.DeleteRows(0, delete_cnt)
+
+        self.wire_data = {}
+
+        for wire in self.bus_data[self.active_bus]:
+            self.wire_data[wire] = 0.0
+
+        print(f"bus_data {self.wire_data}")
+
+        self.update_list()
 
         event.Skip()
 
@@ -358,7 +397,7 @@ class KiBus(pcbnew.ActionPlugin):
         self.description = "A helper dialog that displays bus signal lengts with comparison and sorting"
         self.icon_file_name = os.path.join(
                 os.path.dirname(__file__), 'kibus-icon.png')
-                
+
     def Run(self):
         # load board
         board = pcbnew.GetBoard()
@@ -395,21 +434,55 @@ class KiBus(pcbnew.ActionPlugin):
         else:
             _pcbnew_frame = [x for x in wx.GetTopLevelWindows() if x.GetTitle().lower().endswith('pcb editor')][0]
 
-        # find all selected tracks and pads
-        nets = set()
-        selected_tracks = [x for x in board.GetTracks() if x.IsSelected()]
+        # check if a length matching spec file is present
+        file = None
+        try:
+            file_name = os.path.abspath(os.path.splitext(os.path.basename(board.GetFileName()))[0] + "-lm.json")
+            file = open(file_name, "r")
+        except Exception as e:
+            print(f"Could not open lm data file: '{file_name}' '{e}'")
+            file = None
 
-        nets.update([track.GetNetname() for track in selected_tracks])
+        data = None
+        if file:
+            import json
+            try:
+                data = json.load(file)
+            except Exception as e:
+                print("Could not parse lm data %s".format(e))
+                data = None
 
-        if is_kicad_stable:
-            modules = board.GetModules()
-        else:
-            modules = board.GetFootprints()
-        for mod in modules:
-            pads = mod.Pads()
-            nets.update([pad.GetNetname() for pad in pads if pad.IsSelected()])
+        # find all the nets:
+        matched_nets = []
+        all_nets = [str(n) for n in board.GetNetsByName().keys()]
+        print(f"All nets {all_nets}")
+        if data:
+            for bus, bus_wires in data.items():
+                for wire, nets in bus_wires.items():
+                    for net in nets:
+                        if net in all_nets:
+                            matched_nets.append(net)
+                            print(f"Bus '{bus}', Wire '{wire}', Net '{net}' added")
+                        else:
+                            print(f"Bus '{bus}', Wire '{wire}', Net '{net}' NOT found in board")
 
-        dlg = KiBusDialog(_pcbnew_frame, board, list(nets), logger)
+        # # find all selected tracks and pads
+        # matched_nets = set()
+        # selected_tracks = [x for x in board.GetTracks() if x.IsSelected()]
+
+        # matched_nets.update([track.GetNetname() for track in selected_tracks])
+
+        # if is_kicad_stable:
+        #     modules = board.GetModules()
+        # else:
+        #     modules = board.GetFootprints()
+        # for mod in modules:
+        #     pads = mod.Pads()
+        #     matched_nets.update([pad.GetNetname() for pad in pads if pad.IsSelected()])
+
+        # matched_nets = list(matched_nets)
+
+        dlg = KiBusDialog(_pcbnew_frame, board, data, logger)
         dlg.Show()
 
 
