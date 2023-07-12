@@ -113,6 +113,9 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
         self.timer = wx.Timer(self, 1)
         self.refresh_time = 0.1
 
+        self.board_thickness = self.board.GetDesignSettings().GetBoardThickness()
+        print(f"Board Thickness {self.board_thickness}")
+
         self.Bind(wx.EVT_TIMER, self.on_update, self.timer)
 
         self.logger.info("Length stats gui initialized")
@@ -199,7 +202,12 @@ class KiBusDialog(kibus_GUI.KiBusGUI):
                 tracks_on_net = self.board.TracksInNet(netcode)
 
                 # sum their length
-                length = sum(t.GetLength() / SCALE for t in tracks_on_net)
+                length = 0.0
+                for t in tracks_on_net:
+                    if t.GetClass() == "PCB_VIA":
+                        length += self.board_thickness / SCALE
+                    else:
+                        length += t.GetLength() / SCALE
 
                 # update database
                 self.signal_data[signal] += length

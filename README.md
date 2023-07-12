@@ -22,11 +22,12 @@ The currently implemented features are:
   trace is to the target length
 * Load the Bus specification from a file
 * Ability to length match a wire that consists of multiple nets
+* Via length is considered when calculating track length
 
 Features on the wishlist
+* Add support for blind and burried Via
 * Select target length
 * Add bonding wire length adjustment.
-* Add via length
 * Store  project config file defining the bus nets and the length
   matching requirements. (this should eventually become part of the net class
   parameters within kicad) 
